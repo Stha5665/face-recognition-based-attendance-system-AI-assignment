@@ -1,0 +1,95 @@
+import numpy as np
+import cv2
+from cv2 import CascadeClassifier
+import os
+from cv2 import imread
+from google.colab.patches import cv2_imshow
+from cv2 import CascadeClassifier
+import random
+from keras.preprocessing.image import ImageDataGenerator
+
+def preprocessImages(rawDataPath, preprocessedDataPath):
+
+  datagen = ImageDataGenerator(
+      rotation_range=30,
+      width_shift_range=0.1,
+      height_shift_range=0.1,
+      shear_range=0.2,
+      zoom_range=0.2,
+      horizontal_flip=True,
+      )
+
+  # Define the target size for resizing
+  targetSize = (128, 128)
+
+  # Define the number of augmented images to generate
+  totalNumAugmentedImages = 100
+
+  # Iterate over the raw images in the directory
+  for imagesFileName in os.listdir(rawDataPath):
+    image_path = os.path.join(rawDataPath, imagesFileName)
+
+    print(imagesFileName)
+    for imageName in os.listdir(image_path):
+
+      # Load the image
+      imagesDirectoryPath = os.path.join(image_path, imageName)
+      image = cv2.imread(imagesDirectoryPath)
+
+      # Resize the image
+      resizedImageObtained = cv2.resize(image, targetSize)
+
+      temp = 0
+      input_image = cv2.cvtColor(resizedImageObtained, cv2.COLOR_BGR2RGB)
+      input_image = np.array(input_image)
+      input_image = input_image.reshape((1,) + input_image.shape)  # Reshape for single image
+
+      # Apply data augmentation to generate additional images
+      for i in range(totalNumAugmentedImages):
+        temp +=1
+        if temp == totalNumAugmentedImages:
+          break
+
+        augmentedImages = datagen.flow(input_image, batch_size=1, save_format='jpg')
+        obtainedAugmentedImage = next(augmentedImages)[0]
+        obtainedAugmentedImage = obtainedAugmentedImage.astype(np.uint8)
+
+          # Perform face detection and crop the image to the face region
+        faceDetect = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        faces = faceDetect.detectMultiScale(obtainedAugmentedImage, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
+        # Iterate over the detected faces
+        for (x, y, w, h) in faces:
+            # augmentedProcessedImagePath = os.path.join(preprocessedDataPath, imagesFileName, imageName)
+            # new_dir = os.path.join(augmentedProcessedImagePath, f'face_{imagesFileName.split(".")[0]}')
+            augmentedProcessedImagePath = os.path.join(preprocessedDataPath, imagesFileName)
+            print(augmentedProcessedImagePath)
+            os.makedirs(augmentedProcessedImagePath, exist_ok=True)
+            # Crop the image to the face region
+            cropped_image = obtainedAugmentedImage[y:y+h, x:x+w]
+
+            # Save the augmented image with a unique filename
+            obtainedAugmentedImage_filename = f'{imageName.split(".")[0]}_{i}.jpg'
+            obtainedAugmentedImage_path = os.path.join(augmentedProcessedImagePath, obtainedAugmentedImage_filename)
+            cv2.imwrite(obtainedAugmentedImage_path, cropped_image)
+
+# Define the directory containing the raw images
+# rawDataPath = '/content/drive/MyDrive/Colab Notebooks/Assignment2/train'
+raw_train_data_dir = '/content/drive/MyDrive/AI/datasets/train'
+raw_validation_data_dir = '/content/drive/MyDrive/AI/datasets/validation'
+
+# Define the output directory for the preprocessed dataset
+preprocessed_train_data_dir = '/content/sample_data/preprocessed_dataset/train'
+preprocessed_validation_data_dir = '/content/sample_data/preprocessed_dataset/validation'
+
+# Create the output directory if it doesn't exist
+os.makedirs(preprocessed_train_data_dir, exist_ok=True)
+os.makedirs(preprocessed_validation_data_dir, exist_ok=True)
+
+preprocessImages(raw_train_data_dir, preprocessed_train_data_dir)
+preprocessImages(raw_validation_data_dir, preprocessed_validation_data_dir)
+
+
+
+
+
